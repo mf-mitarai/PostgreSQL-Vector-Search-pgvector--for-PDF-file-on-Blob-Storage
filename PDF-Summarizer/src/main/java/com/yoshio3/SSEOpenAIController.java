@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+
 import com.azure.ai.openai.OpenAIAsyncClient;
 import com.azure.ai.openai.OpenAIClientBuilder;
 import com.azure.ai.openai.models.ChatChoice;
@@ -40,6 +42,7 @@ import com.yoshio3.entities.CreateAreaInHTML;
 import com.yoshio3.entities.CreateLinkInHTML;
 import com.yoshio3.entities.CreateMessageInHTML;
 import com.yoshio3.entities.DocumentSummarizer;
+
 import jakarta.annotation.PostConstruct;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -110,6 +113,11 @@ public class SSEOpenAIController {
     public void init() {
         client = new OpenAIClientBuilder().endpoint(OPENAI_URL)
                 .credential(new AzureKeyCredential(OPENAI_API_KEY)).buildAsyncClient();
+        /* OpenAIのAPIを使用する実装
+        client = new OpenAIClientBuilder()
+        		.credential(new NonAzureOpenAIKeyCredential(OPENAI_API_KEY))
+        		.buildAsyncClient();
+        */
     }
 
     // Return index.html

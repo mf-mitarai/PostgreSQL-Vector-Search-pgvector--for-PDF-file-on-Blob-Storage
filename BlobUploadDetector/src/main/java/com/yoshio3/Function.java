@@ -1,12 +1,5 @@
 package com.yoshio3;
 
-import com.microsoft.azure.functions.annotation.*;
-import com.yoshio3.models.CosmosDBDocumentStatus;
-import com.azure.ai.openai.OpenAIClient;
-import com.azure.ai.openai.OpenAIClientBuilder;
-import com.azure.ai.openai.models.EmbeddingsOptions;
-import com.azure.core.credential.AzureKeyCredential;
-import com.microsoft.azure.functions.*;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
@@ -18,8 +11,21 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
+
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
+
+import com.azure.ai.openai.OpenAIClient;
+import com.azure.ai.openai.OpenAIClientBuilder;
+import com.azure.ai.openai.models.EmbeddingsOptions;
+import com.azure.core.credential.AzureKeyCredential;
+import com.microsoft.azure.functions.ExecutionContext;
+import com.microsoft.azure.functions.annotation.BindingName;
+import com.microsoft.azure.functions.annotation.BlobInput;
+import com.microsoft.azure.functions.annotation.BlobTrigger;
+import com.microsoft.azure.functions.annotation.FunctionName;
+import com.microsoft.azure.functions.annotation.StorageAccount;
+import com.yoshio3.models.CosmosDBDocumentStatus;
 
 
 public class Function {
@@ -62,6 +68,11 @@ public class Function {
     public Function() {
         client = new OpenAIClientBuilder().credential(new AzureKeyCredential(OPENAI_API_KEY))
                 .endpoint(OPENAI_URL).buildClient();
+        /* OpenAIのAPIを使用する実装
+        client = new OpenAIClientBuilder()
+        		.credential(new NonAzureOpenAIKeyCredential(OPENAI_API_KEY))
+        		.buildClient();
+        */
         cosmosDBUtil = new CosmosDBUtil();
     }
 
@@ -167,7 +178,7 @@ public class Function {
             sleep();
         } catch (Exception e) {
             context.getLogger()
-                    .severe("Error while inserting data to PostgreSQL: " + e.getMessage());
+                    .log(java.util.logging.Level.SEVERE, "Error while inserting data to PostgreSQL: " + e.getMessage(), e);
             cosmosDBUtil.updateStatus(uuidString, CosmosDBDocumentStatus.FAILED_DB_INSERTION,
                     context);
             Thread.currentThread().interrupt();
