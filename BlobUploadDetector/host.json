@@ -4,5 +4,15 @@
   "extensionBundle": {
     "id": "Microsoft.Azure.Functions.ExtensionBundle",
     "version": "[3.*, 4.0.0)"
-  } 
+  },
+  "logging": {
+    "fileLoggingMode": "debugOnly",
+    "logLevel": {
+      "default": "Information"
+    },
+    "console": {
+      "isEnabled": false,
+      "DisableColors": true
+    }
+  }
 }
