@@ -16,7 +16,7 @@
         <java.version>17</java.version>
         <azure.functions.maven.plugin.version>1.26.0</azure.functions.maven.plugin.version>
         <azure.functions.java.library.version>3.0.0</azure.functions.java.library.version>
-        <functionAppName>BlobUploadDetector</functionAppName>
+        <functionAppName>BlobUploadDetectorV1</functionAppName>
     </properties>
 
     <dependencies>
