@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,6 +23,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -37,11 +39,14 @@ import com.azure.ai.openai.models.ChatMessageDelta;
 import com.azure.ai.openai.models.ChatRole;
 import com.azure.ai.openai.models.EmbeddingsOptions;
 import com.azure.core.credential.AzureKeyCredential;
+import com.azure.cosmos.implementation.guava25.collect.Streams;
 import com.google.gson.Gson;
 import com.yoshio3.entities.CreateAreaInHTML;
 import com.yoshio3.entities.CreateLinkInHTML;
 import com.yoshio3.entities.CreateMessageInHTML;
 import com.yoshio3.entities.DocumentSummarizer;
+import com.yoshio3.models.DeleteFileNameForm;
+import com.yoshio3.models.DeleteFileNameItem;
 
 import jakarta.annotation.PostConstruct;
 import reactor.core.publisher.Flux;
@@ -260,6 +265,68 @@ public class SSEOpenAIController {
         // 将来的にはページング処理を実装する必要ある
         model.addAttribute("list", cosmosDBUtil.getAllFailedDocuments());
         return "listAllFailedContents";
+    }
+
+    @GetMapping("/deleteContents")
+    public String deleteContents(Model model) {
+        // CosmosDB から全てのドキュメントを取得し、Web ページに表示するため、Model に追加
+        // 将来的にはページング処理を実装する必要ある
+    	try {
+        	var list = cosmosDBUtil.getDocumentFileNames();
+        	model.addAttribute("list", (list == null || list.isEmpty()) ?
+        			new ArrayList<DeleteFileNameItem>() :
+        				Streams.mapWithIndex(list.stream(),
+        						(fileName, index) -> new DeleteFileNameItem((int)index, fileName)).collect(Collectors.toList()));
+        	model.addAttribute("deleteFileNames", new ArrayList<String>());
+    	} catch (Exception e) {
+    		throw new IllegalStateException(e);
+    	}
+        return "deleteContents";
+    }
+    
+    @PostMapping("executeDeleteContents")
+    public String executeDeleteContents(Model model, @ModelAttribute DeleteFileNameForm form) {
+		try {
+			if (form.isAllDelete()) {
+				// TODO:
+			} else if (form.getDeleteFileNames() != null && !form.getDeleteFileNames().isEmpty()) {
+				cosmosDBUtil.deleteDocuments(form.getDeleteFileNames());
+				deleteDocumentsFromPgsql(form.getDeleteFileNames());
+			}
+		} catch (Exception e) {
+    		throw new IllegalStateException(e);
+		}
+    	return "redirect:/deleteContents";
+    }
+    
+    private void deleteDocumentsFromPgsql(List<String> fileNames) throws SQLException {
+    	if (fileNames == null || fileNames.isEmpty()) {
+    		return;
+    	}
+        try (var connection = DriverManager.getConnection(POSTGRESQL_JDBC_URL,
+                POSTGRESQL_USER, POSTGRESQL_PASSWORD)) {
+        	connection.setAutoCommit(false);
+        	try {
+                String querySql = "DELETE FROM " + POSTGRESQL_TABLE_NAME + " WHERE filename = ?;";
+            	try (var queryStatement = connection.prepareStatement(querySql)) {
+                    for (var fileName : fileNames) {
+                		queryStatement.setString(1, fileName);
+                		queryStatement.addBatch();
+                    }
+                    var updateCounts = queryStatement.executeBatch();
+                    var resultStr = Arrays.stream(updateCounts)
+                    		.mapToObj(i -> String.valueOf(0))
+                    		.collect(Collectors.joining(", "));
+                    LOGGER.info("Delete result. [{}]", resultStr);
+            	}
+                connection.commit();
+        	} catch (SQLException e) {
+            	LOGGER.error("Delete failure.", e);
+            	connection.rollback();
+        	}
+        } catch (SQLException e) {
+        	LOGGER.error("Connection failure.", e);
+        }
     }
 
     // Create Sinks for accessed User
