@@ -15,7 +15,6 @@ import org.springframework.stereotype.Component;
 
 import com.azure.cosmos.CosmosAsyncClient;
 import com.azure.cosmos.CosmosAsyncContainer;
-import com.azure.cosmos.CosmosAsyncDatabase;
 import com.azure.cosmos.CosmosClientBuilder;
 import com.azure.cosmos.models.CosmosQueryRequestOptions;
 import com.azure.cosmos.models.PartitionKey;
@@ -60,7 +59,7 @@ public class CosmosDBUtil {
                 .endpoint(COSMOS_DB_ENDPOINT)
                 .key(COSMOS_DB_KEY)
                 .buildAsyncClient();
-        CosmosAsyncDatabase database = client.getDatabase(COSMOS_DB_DATABASE_NAME);
+        var database = client.getDatabase(COSMOS_DB_DATABASE_NAME);
         container = database.getContainer(COSMOS_DB_CONTAINER_NAME);
     }
 
@@ -86,17 +85,20 @@ public class CosmosDBUtil {
 
     // ファイル名の一覧を取得
     public List<String> getDocumentFileNames() throws InterruptedException {
-        CosmosQueryRequestOptions options = new CosmosQueryRequestOptions();
+        var options = new CosmosQueryRequestOptions();
         options.setQueryMetricsEnabled(true);
-        SqlQuerySpec querySpec = new SqlQuerySpec(ALL_FILE_NAME_QUERY);
+        var querySpec = new SqlQuerySpec(ALL_FILE_NAME_QUERY);
 
+    	var executor = Executors.newSingleThreadExecutor();
     	var  cdl = new CountDownLatch(1);
     	var result = new AtomicReference<List<String>>();
-    	var executor = Executors.newSingleThreadExecutor();
     	executor.execute(() -> {
     		container.queryItems(querySpec, options, CosmosDBDocument.class).byPage().subscribe(res -> {
     			List<String> fileNames = res.getResults().stream().map(doc -> doc.fileName()).collect(Collectors.toList());
     			result.set(fileNames);
+    		}, e -> {
+    			LOGGER.error("Cosmos DB query Failed.", e);
+    		}, () -> {
         		cdl.countDown();
     		});
     	});
@@ -126,6 +128,9 @@ public class CosmosDBUtil {
         					return list;
         				});
         			}
+        		}, e -> {
+        			LOGGER.error("Cosmos DB query Failed.", e);
+        		}, () -> {
         			selectCdl.countDown();
         		});
         	}
@@ -142,6 +147,9 @@ public class CosmosDBUtil {
     			container.deleteItem(deleteId, new PartitionKey(deleteId)).subscribe(res -> {
     				var statusCode = res.getStatusCode();
     				LOGGER.info("delete documents[id={},statusCode={}]", deleteId, statusCode);
+    			}, e -> {
+        			LOGGER.error("Cosmos DB delete Failed.", e);
+    			}, () -> {
     				deleteCdl.countDown();
     			});
     		}

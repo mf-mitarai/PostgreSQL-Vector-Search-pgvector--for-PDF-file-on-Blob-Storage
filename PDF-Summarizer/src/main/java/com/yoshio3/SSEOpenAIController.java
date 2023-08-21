@@ -64,13 +64,17 @@ public class SSEOpenAIController {
     @Value("${azure.openai.url}")
     private String OPENAI_URL;
 
+    // Azure OpenAI API Key
+    @Value("${azure.openai.api.key}")
+    private String OPENAI_API_KEY;
+
     // Name of Model
     @Value("${azure.openai.model.name}")
     private String OPENAI_MODEL_NAME;
 
-    // Azure OpenAI API Key
-    @Value("${azure.openai.api.key}")
-    private String OPENAI_API_KEY;
+    // Name of Embedding Model
+    @Value("${azure.openai.embedding.model.name}")
+    private String OPENAI_EMBEDDING_MODEL_NAME;
 
     @Value("${azure.postgresql.jdbcurl}")
     private String POSTGRESQL_JDBC_URL;
@@ -92,8 +96,6 @@ public class SSEOpenAIController {
 
     // Maximum number of results to be returned by the search process
     private static final int MAX_RESULT = 5;
-
-    private static final String TEXT_EMBEDDING_ADA = "text-embedding-ada-002";
 
     private final static String SYSTEM_DEFINITION = """
                 このシステムは、ドキュメントを管理するためのシステムです。
@@ -376,7 +378,7 @@ public class SSEOpenAIController {
     public Mono<List<DocumentSummarizer>> findMostSimilarString(String inputData) {
         EmbeddingsOptions embeddingsOptions = new EmbeddingsOptions(Arrays.asList(inputData));
 
-        return client.getEmbeddings(TEXT_EMBEDDING_ADA, embeddingsOptions)
+        return client.getEmbeddings(OPENAI_EMBEDDING_MODEL_NAME, embeddingsOptions)
                 .flatMap(embeddings -> {
                     List<DocumentSummarizer> docSummaryList = new ArrayList<>();
                     List<Double> embedding = embeddings.getData().stream().findFirst().get().getEmbedding();

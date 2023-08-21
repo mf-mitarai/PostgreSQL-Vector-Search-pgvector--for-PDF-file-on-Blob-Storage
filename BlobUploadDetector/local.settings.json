@@ -13,8 +13,9 @@
     "AzureCosmosDbDatabaseName": "",
     "AzureCosmosDbContainerName": "",
     "AzureOpenaiUrl": "",
-    "AzureOpenaiModelName": "",
     "AzureOpenaiApiKey": "",
+    "AzureOpenaiModelName": "",
+    "AzureOpenaiEmbeddingModelName": "",
     "FUNCTIONS_WORKER_RUNTIME": "java"
   }
 }
