@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>ドキュメントアップロード手順</title>
+</head>
+<body>
+  <div id="content"></div>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script>
+	fetch('/explainUploadDocuments.md')
+      .then(function(response) {
+        response.text().then(function(text) {
+          document.getElementById('content').innerHTML = marked.parse(text);
+        });
+      });
+  </script>
+</body>
+</html>

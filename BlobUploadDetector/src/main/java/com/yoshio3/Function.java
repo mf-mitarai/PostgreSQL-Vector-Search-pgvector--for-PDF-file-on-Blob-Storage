@@ -71,29 +71,26 @@ public class Function {
 	}
 
 	public Function() {
-		client = new OpenAIClientBuilder().credential(new AzureKeyCredential(OPENAI_API_KEY))
-				.endpoint(OPENAI_URL).buildClient();
-		/* OpenAIのAPIを使用する実装
 		client = new OpenAIClientBuilder()
-				.credential(new NonAzureOpenAIKeyCredential(OPENAI_API_KEY))
+				.credential(new AzureKeyCredential(OPENAI_API_KEY))
+				.endpoint(OPENAI_URL)
 				.buildClient();
-		*/
 		cosmosDBUtil = new CosmosDBUtil();
 	}
 
 	// 注意：applications.properties で "azure.blobstorage.container.name=pdfs" を変更した場合は
 	// @BlobTrigger, @BlobInput の path も変更する必要があります。 デフォルト値：(pdfs/{name})
 	// 理由は、path で指定できる値は、constants で定義されているものだけで、プロパティから取得することはできないためです。
-	@FunctionName("ProcessUploadedPdfFile")
+	@FunctionName("ProcessUploadedFile")
 	@StorageAccount("AzureWebJobsStorage")
 	public void run(
-			@BlobTrigger(name = "content", path = "pdfs/{name}", dataType = "binary") byte[] content,
+			@BlobTrigger(name = "content", path = "docs/{name}", dataType = "binary") byte[] content,
 			@BindingName("name") String fileName,
-			@BlobInput(name = "inputBlob", path = "pdfs/{name}", dataType = "binary") byte[] inputBlob,
+			@BlobInput(name = "inputBlob", path = "docs/{name}", dataType = "binary") byte[] inputBlob,
 			final ExecutionContext context) throws UnsupportedEncodingException {
 		var logContainer = LogContainer.create(context);
 		String encodedFileName = URLEncoder.encode(fileName, "UTF-8");
-		logContainer.funcLogger().info("Function [ProcessUploadedPdfFile] Trigger File: " + encodedFileName);
+		logContainer.funcLogger().info("Function [ProcessUploadedFile] Trigger File: " + encodedFileName);
 		if (fileName.endsWith(".pdf")) {
 			analyzePdf(content, fileName, logContainer);
 		}

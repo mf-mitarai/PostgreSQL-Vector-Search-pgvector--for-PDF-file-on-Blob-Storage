@@ -119,12 +119,8 @@ public class SSEOpenAIController {
     @PostConstruct
     public void init() {
         client = new OpenAIClientBuilder().endpoint(OPENAI_URL)
-                .credential(new AzureKeyCredential(OPENAI_API_KEY)).buildAsyncClient();
-        /* OpenAIのAPIを使用する実装
-        client = new OpenAIClientBuilder()
-        		.credential(new NonAzureOpenAIKeyCredential(OPENAI_API_KEY))
-        		.buildAsyncClient();
-        */
+                .credential(new AzureKeyCredential(OPENAI_API_KEY))
+                .buildAsyncClient();
     }
 
     // Return index.html
