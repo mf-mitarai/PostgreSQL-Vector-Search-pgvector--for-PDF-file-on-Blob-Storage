@@ -159,6 +159,70 @@
                     </runtime>
                     <appSettings>
                         <property>
+                            <name>AzureWebJobsStorage</name>
+                            <value></value>
+                        </property>
+                        <property>
+                            <name>AzurePostgresqlJdbcurl</name>
+                            <value></value>
+                        </property>
+                        <property>
+                            <name>AzurePostgresqlUser</name>
+                            <value></value>
+                        </property>
+                        <property>
+                            <name>AzurePostgresqlPassword</name>
+                            <value></value>
+                        </property>
+                        <property>
+                            <name>AzurePostgresqlDbTableName</name>
+                            <value></value>
+                        </property>
+                        <property>
+                            <name>AzureBlobstorageName</name>
+                            <value></value>
+                        </property>
+                        <property>
+                            <name>AzureBlobstorageContainerName</name>
+                            <value></value>
+                        </property>
+                        <property>
+                            <name>AzureCosmosDbEndpoint</name>
+                            <value></value>
+                        </property>
+                        <property>
+                            <name>AzureCosmosDbKey</name>
+                            <value></value>
+                        </property>
+                        <property>
+                            <name>AzureCosmosDbDatabaseName</name>
+                            <value></value>
+                        </property>
+                        <property>
+                            <name>AzureCosmosDbContainerName</name>
+                            <value></value>
+                        </property>
+                        <property>
+                            <name>AzureOpenaiUrl</name>
+                            <value></value>
+                        </property>
+                        <property>
+                            <name>AzureOpenaiApiKey</name>
+                            <value></value>
+                        </property>
+                        <property>
+                            <name>AzureOpenaiModelName</name>
+                            <value></value>
+                        </property>
+                        <property>
+                            <name>AzureOpenaiEmbeddingModelName</name>
+                            <value></value>
+                        </property>
+                        <property>
+                            <name>JAVA_OPTS</name>
+                            <value>-Xmx1g</value>
+                        </property>
+                        <property>
                             <name>FUNCTIONS_EXTENSION_VERSION</name>
                             <value>~4</value>
                         </property>
