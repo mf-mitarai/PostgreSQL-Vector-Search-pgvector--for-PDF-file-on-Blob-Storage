@@ -2,9 +2,14 @@ package com.yoshio3;
 
 import static com.yoshio3.utils.Throwing.*;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.util.ArrayList;
@@ -21,9 +26,14 @@ import com.azure.ai.openai.OpenAIClient;
 import com.azure.ai.openai.OpenAIClientBuilder;
 import com.azure.ai.openai.models.EmbeddingsOptions;
 import com.azure.core.credential.AzureKeyCredential;
+import com.documents4j.api.DocumentType;
+import com.documents4j.conversion.msoffice.MicrosoftPowerpointBridge;
+import com.documents4j.job.LocalConverter;
 import com.microsoft.azure.functions.ExecutionContext;
+import com.microsoft.azure.functions.OutputBinding;
 import com.microsoft.azure.functions.annotation.BindingName;
 import com.microsoft.azure.functions.annotation.BlobInput;
+import com.microsoft.azure.functions.annotation.BlobOutput;
 import com.microsoft.azure.functions.annotation.BlobTrigger;
 import com.microsoft.azure.functions.annotation.FunctionName;
 import com.microsoft.azure.functions.annotation.StorageAccount;
@@ -69,6 +79,14 @@ public class Function {
 		POSTGRESQL_PASSWORD = System.getenv("AzurePostgresqlPassword");
 		POSTGRESQL_TABLE_NAME = System.getenv("AzurePostgresqlDbTableName");
 	}
+	
+	private static File GetConvertTempDir() throws IOException {
+		var tempDir = Paths.get(System.getProperty("user.dir"), "temp");
+		if (Files.notExists(tempDir)) {
+			Files.createDirectory(tempDir);
+		}
+		return tempDir.toFile();
+	}
 
 	public Function() {
 		client = new OpenAIClientBuilder()
@@ -84,22 +102,72 @@ public class Function {
 	@FunctionName("ProcessUploadedFile")
 	@StorageAccount("AzureWebJobsStorage")
 	public void run(
-			@BlobTrigger(name = "content", path = "docs/{name}", dataType = "binary") byte[] content,
-			@BindingName("name") String fileName,
-			@BlobInput(name = "inputBlob", path = "docs/{name}", dataType = "binary") byte[] inputBlob,
+			@BlobTrigger(name = "content", path = "docs/{blobName}.{ext}", dataType = "binary") byte[] content,
+			@BindingName("blobName") String fileBaseName,
+			@BindingName("ext") String fileExt,
+			@BlobInput(name = "inputBlob", path = "docs/{blobName}.{ext}", dataType = "binary") byte[] inputBlob,
+			@BlobOutput(name = "outputFileContent", path = "docs/{blobName}.{ext}.pdf", dataType = "binary") OutputBinding<byte[]> outputFileContent,
 			final ExecutionContext context) throws UnsupportedEncodingException {
 		var logContainer = LogContainer.create(context);
+		var fileName = new StringBuilder()
+				.append(fileBaseName)
+				.append(".")
+				.append(fileExt)
+				.toString();
 		String encodedFileName = URLEncoder.encode(fileName, "UTF-8");
-		logContainer.funcLogger().info("Function [ProcessUploadedFile] Trigger File: " + encodedFileName);
-		if (fileName.endsWith(".pdf")) {
+		logContainer.funcLogger().info("Function [ProcessUploadedFile] trigger file: " + encodedFileName);
+		if ("pdf".equals(fileExt)) {
 			analyzePdf(content, fileName, logContainer);
+		} else if ("doc".equals(fileExt) || "docx".equals(fileExt)) {
+			convertPdfAndUpdateStorage(content, fileName, outputFileContent, DocumentType.MS_WORD, logContainer);
+		} else if ("xls".equals(fileExt) || "xlsx".equals(fileExt)) {
+			convertPdfAndUpdateStorage(content, fileName, outputFileContent, DocumentType.MS_EXCEL, logContainer);
+		} else if ("ppt".equals(fileExt) || "pptx".equals(fileExt)) {
+			convertPdfAndUpdateStorage(content, fileName, outputFileContent, DocumentType.MS_POWERPOINT, logContainer);
+		}
+	}
+	
+	private void convertPdfAndUpdateStorage(
+			byte[] content,
+			String fileName,
+			OutputBinding<byte[]> outputFileContent,
+			DocumentType inputDocType,
+			final LogContainer logContainer) {
+		try {
+			var builder = LocalConverter
+					.builder()
+	        		.baseFolder(GetConvertTempDir())
+	    			.workerPool(20, 25, 2, TimeUnit.SECONDS)
+	    			.processTimeout(5, TimeUnit.SECONDS);
+			var converter = (DocumentType.MS_POWERPOINT.equals(inputDocType)) ?
+					builder.enable(MicrosoftPowerpointBridge.class).build() : builder.build();
+			try (var bais = new ByteArrayInputStream(content);
+					var baos = new ByteArrayOutputStream()) {
+				logContainer.funcLogger().info("Convert " + inputDocType + " to PDF start.");
+				var conversion = converter
+						.convert(bais)
+						.as(inputDocType)
+						.to(baos)
+						.as(DocumentType.PDF)
+						.schedule();
+				var result = conversion.get();
+				logContainer.funcLogger().info("Convert " + inputDocType + " to PDF end. [result=" + result + "]");
+				if (!result) {
+					return;
+				}
+				outputFileContent.setValue(baos.toByteArray());
+			} finally {
+				converter.shutDown();
+			}
+		} catch (Exception e) {
+			logContainer.funcLogger().severe("Error convert PDF.", e);
 		}
 	}
 
 	private void analyzePdf(byte[] content, String fileName, final LogContainer logContainer) {
 		try {
 			if (cosmosDBUtil.isRegisteredDocument(fileName, logContainer.cosmosLogger())) {
-				logContainer.funcLogger().info("already registered file: " + fileName);
+				logContainer.funcLogger().info("Already registered file: " + fileName);
 				return;
 			}
 			var pageInfos = extractPDFtoTextByPage(logContainer.funcLogger(), content);
@@ -115,10 +183,10 @@ public class Function {
 							pageInfo.pageNumber());
 				}));
 			} catch (Exception e) {
-				logContainer.funcLogger().severe("Error Trigger PDF.", e);
+				logContainer.funcLogger().severe("Error trigger PDF.", e);
 			}
 		} catch (Exception e) {
-			logContainer.funcLogger().severe("Error Trigger PDF.", e);
+			logContainer.funcLogger().severe("Error trigger PDF.", e);
 		}
 	}
 
