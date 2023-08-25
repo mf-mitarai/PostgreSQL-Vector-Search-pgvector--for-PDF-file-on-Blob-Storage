@@ -15,9 +15,11 @@ import java.sql.DriverManager;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
@@ -61,6 +63,9 @@ public class Function {
 	// １ページに含まれる文字数の上限（これを超える場合はページを分割して処理する）
 	private static final int MAX_SEPARATE_TOKEN_LENGTH = 7500;
 
+	// 処理する拡張子
+	private static final Optional<String> EXECUTE_EXTENSION_TYPES;
+
 	// Azure OpenAI のクライアント・インスタンス
 	private OpenAIClient client;
 	// Azure OpenAI の呼び出しリトライ回数
@@ -78,6 +83,8 @@ public class Function {
 		POSTGRESQL_USER = System.getenv("AzurePostgresqlUser");
 		POSTGRESQL_PASSWORD = System.getenv("AzurePostgresqlPassword");
 		POSTGRESQL_TABLE_NAME = System.getenv("AzurePostgresqlDbTableName");
+
+		EXECUTE_EXTENSION_TYPES = Optional.ofNullable(System.getenv("ExecuteExtensionTypes"));
 	}
 	
 	private static File GetConvertTempDir() throws IOException {
@@ -116,14 +123,19 @@ public class Function {
 				.toString();
 		String encodedFileName = URLEncoder.encode(fileName, "UTF-8");
 		logContainer.funcLogger().info("Function [ProcessUploadedFile] trigger file: " + encodedFileName);
-		if ("pdf".equals(fileExt)) {
-			analyzePdf(content, fileName, logContainer);
-		} else if ("doc".equals(fileExt) || "docx".equals(fileExt)) {
-			convertPdfAndUpdateStorage(content, fileName, outputFileContent, DocumentType.MS_WORD, logContainer);
-		} else if ("xls".equals(fileExt) || "xlsx".equals(fileExt)) {
-			convertPdfAndUpdateStorage(content, fileName, outputFileContent, DocumentType.MS_EXCEL, logContainer);
-		} else if ("ppt".equals(fileExt) || "pptx".equals(fileExt)) {
-			convertPdfAndUpdateStorage(content, fileName, outputFileContent, DocumentType.MS_POWERPOINT, logContainer);
+		if (Stream.of(EXECUTE_EXTENSION_TYPES.orElse("pdf").split(","))
+				.filter(type -> type.equals(fileExt))
+				.findFirst()
+				.isPresent()) {
+			if ("pdf".equals(fileExt)) {
+				analyzePdf(content, fileName, logContainer);
+			} else if ("doc".equals(fileExt) || "docx".equals(fileExt)) {
+				convertPdfAndUpdateStorage(content, fileName, outputFileContent, DocumentType.MS_WORD, logContainer);
+			} else if ("xls".equals(fileExt) || "xlsx".equals(fileExt)) {
+				convertPdfAndUpdateStorage(content, fileName, outputFileContent, DocumentType.MS_EXCEL, logContainer);
+			} else if ("ppt".equals(fileExt) || "pptx".equals(fileExt)) {
+				convertPdfAndUpdateStorage(content, fileName, outputFileContent, DocumentType.MS_POWERPOINT, logContainer);
+			}
 		}
 	}
 	
@@ -134,6 +146,11 @@ public class Function {
 			DocumentType inputDocType,
 			final LogContainer logContainer) {
 		try {
+			var pdfFileName = new StringBuilder().append(fileName).append(".pdf").toString();
+			if (cosmosDBUtil.isRegisteredDocument(pdfFileName, logContainer.cosmosLogger())) {
+				logContainer.funcLogger().info("Already registered file: " + pdfFileName);
+				return;
+			}
 			var builder = LocalConverter
 					.builder()
 	        		.baseFolder(GetConvertTempDir())

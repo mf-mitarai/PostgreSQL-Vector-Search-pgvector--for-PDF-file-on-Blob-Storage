@@ -16,6 +16,7 @@
     "AzureOpenaiApiKey": "",
     "AzureOpenaiModelName": "",
     "AzureOpenaiEmbeddingModelName": "",
+    "ExecuteExtensionTypes": "pdf",
     "JAVA_OPTS": "-Xmx1g",
     "FUNCTIONS_WORKER_RUNTIME": "java"
   }

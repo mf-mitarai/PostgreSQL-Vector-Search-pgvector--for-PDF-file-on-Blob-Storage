@@ -219,6 +219,10 @@
                             <value></value>
                         </property>
                         <property>
+                            <name>ExecuteExtensionTypes</name>
+                            <value>pdf</value>
+                        </property>
+                        <property>
                             <name>JAVA_OPTS</name>
                             <value>-Xmx1g</value>
                         </property>
