@@ -156,7 +156,7 @@ public class Function {
 					.builder()
 	        		.baseFolder(GetConvertTempDir())
 	    			.workerPool(20, 25, 2, TimeUnit.SECONDS)
-	    			.processTimeout(5, TimeUnit.SECONDS);
+	    			.processTimeout(5, TimeUnit.MINUTES);
 			var converter = (DocumentType.MS_POWERPOINT.equals(inputDocType)) ?
 					builder.enable(MicrosoftPowerpointBridge.class).build() : builder.build();
 			try (var bais = new ByteArrayInputStream(content);
