@@ -122,7 +122,7 @@ public class Function {
 				.append(fileExt)
 				.toString();
 		String encodedFileName = URLEncoder.encode(fileName, "UTF-8");
-		logContainer.funcLogger().info("Function [ProcessUploadedFile] trigger file: " + encodedFileName);
+		logContainer.funcLogger().info("Function [ProcessUploadedFile] start / trigger file: " + encodedFileName);
 		if (Stream.of(EXECUTE_EXTENSION_TYPES.orElse("pdf").split(","))
 				.filter(type -> type.equals(fileExt))
 				.findFirst()
@@ -137,6 +137,7 @@ public class Function {
 				convertPdfAndUpdateStorage(content, fileName, outputFileContent, DocumentType.MS_POWERPOINT, logContainer);
 			}
 		}
+		logContainer.funcLogger().info("Function [ProcessUploadedFile] end   / trigger file: " + encodedFileName);
 	}
 	
 	private void convertPdfAndUpdateStorage(
